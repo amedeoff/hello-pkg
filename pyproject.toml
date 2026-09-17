@@ -13,3 +13,6 @@ license = { text = "MIT" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/hello_pkg"]
+
+[project.scripts]
+hello = "hello_pkg:hello"
