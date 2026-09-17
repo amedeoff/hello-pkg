@@ -1,0 +1,15 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "my-hello"
+version = "0.1.0"
+description = "Package for the seminar"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "Chichkanov Timofey", email = "askettim12@yandex.ru" }]
+license = { text = "MIT" }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hello_pkg"]
