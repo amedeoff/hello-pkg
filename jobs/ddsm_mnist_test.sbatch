@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=ddsm-mnist-test
-#SBATCH --partition=gpu-ef-quick
+#SBATCH --partition=test
 #SBATCH --constraint=type_e
 #SBATCH --time=00:30:00
 #SBATCH --nodes=1
@@ -12,7 +12,8 @@
 
 set -euo pipefail
 
-wrapper_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Slurm executes a spool copy: BASH_SOURCE does not point to the checkout.
+wrapper_root="${DDSM_WRAPPER_ROOT:-${SLURM_SUBMIT_DIR:?Submit from repository root}}"
 config_path="${wrapper_root}/.ddsm_charisma.env"
 if [[ ! -f "${config_path}" ]]; then
   echo "Missing ${config_path}; run bash setup_charisma.sh on the login node first." >&2

@@ -1,5 +1,12 @@
 # DDSM on HSE cHARISMa
 
+Текущая цель — четыре метода на DNA promoter benchmark. Подробный обзор,
+источники, границы воспроизведения и аудит: [DNA_REVIEW.md](DNA_REVIEW.md).
+Для проверки очереди используйте `bash tools/preflight_test.sh`, затем
+`sbatch --partition=test jobs/gpu_probe_test.sbatch` из корня checkout.
+Загрузка DNA непосредственно на кластер: `bash tools/download_promoter_data.sh`.
+Четыре DNA training adapters пока не готовы. Ниже сохранён прежний MNIST-тест.
+
 Воспроизводимый запуск официальной реализации статьи:
 
 > Avdeyev et al., *Dirichlet Diffusion Score Model for Biological
@@ -23,8 +30,8 @@ MNIST. Он проверяет весь вычислительный путь:
 6. Euler–Maruyama sampler решает reverse SDE и сохраняет изображения.
 
 Это проверка установки, а не значение из Table 1: тест использует маленький
-noise cache, 20 optimizer steps и уменьшенную сеть, чтобы гарантированно
-уложиться в очередь `test`.
+noise cache, максимум 20 optimizer steps и уменьшенную сеть. Лимит очереди
+30 минут; фактическая длительность пока не измерена, завершение не гарантируется.
 
 Официальное значение статьи на binarized MNIST — `78.04 ± 0.37 nats`.
 Его evaluation использует опубликованный checkpoint, cache из 100000
@@ -92,11 +99,12 @@ sbatch jobs/ddsm_mnist_test.sbatch
 sbatch -A PROJECT_ID jobs/ddsm_mnist_test.sbatch
 ```
 
-Запрашиваются `partition=gpu-ef-quick`, один узел `type_e`, одна NVIDIA A100 80 GB,
-4 CPU и жёсткий лимит 30 минут. Память явно не запрашивается: на cHARISMa
-директива `--mem=32G` приводит к `Memory specification can not be satisfied`
-для этой GPU-конфигурации. `gpu-ef-quick` — официальная вытесняемая очередь
-для отладочных и учебных задач на узлах E/F; узел E имеет A100.
+Запрашиваются `partition=test`, один узел `type_e`, одна NVIDIA A100 80 GB,
+4 CPU и лимит 30 минут. Явный запрос `--mem=32G` удалён после ошибки Slurm.
+Точная причина отказа требует вывода `scontrol`/`sinfo`; успешная отправка
+в другую очередь не доказывает невозможность запуска в test.
+Отправлять из корня checkout; для отправки из другого каталога экспортировать
+`DDSM_WRAPPER_ROOT` с абсолютным путём к checkout.
 
 ## 6. Наблюдение
 

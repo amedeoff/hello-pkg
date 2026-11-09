@@ -1,0 +1,4 @@
+.ddsm_charisma.env
+*.log
+*.err
+__pycache__/
