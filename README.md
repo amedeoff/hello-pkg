@@ -92,8 +92,11 @@ sbatch jobs/ddsm_mnist_test.sbatch
 sbatch -A PROJECT_ID jobs/ddsm_mnist_test.sbatch
 ```
 
-Запрашиваются `partition=test`, один узел `type_e`, одна NVIDIA A100 80 GB,
-4 CPU, 32 GB RAM и жёсткий лимит 30 минут.
+Запрашиваются `partition=gpu-ef-quick`, один узел `type_e`, одна NVIDIA A100 80 GB,
+4 CPU и жёсткий лимит 30 минут. Память явно не запрашивается: на cHARISMa
+директива `--mem=32G` приводит к `Memory specification can not be satisfied`
+для этой GPU-конфигурации. `gpu-ef-quick` — официальная вытесняемая очередь
+для отладочных и учебных задач на узлах E/F; узел E имеет A100.
 
 ## 6. Наблюдение
 

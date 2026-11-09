@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=ddsm-mnist-test
-#SBATCH --partition=test
+#SBATCH --partition=gpu-ef-quick
 #SBATCH --constraint=type_e
 #SBATCH --time=00:30:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --gpus=1
-#SBATCH --mem=32G
 #SBATCH --output=ddsm-mnist-test-%j.log
 #SBATCH --error=ddsm-mnist-test-%j.err
 
