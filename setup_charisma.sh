@@ -3,7 +3,15 @@
 set -euo pipefail
 
 wrapper_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-work_root="/scratch/${USER}/ddsm-reproduction"
+workspace_id="${DDSM_WORKSPACE_ID:-ft-models}"
+workspace_root="$(ws_find "${workspace_id}")"
+if [[ -z "${workspace_root}" || ! -d "${workspace_root}" ]]; then
+  echo "Unable to resolve cHARISMa workspace '${workspace_id}'." >&2
+  echo "Available workspaces:" >&2
+  ws_list >&2 || true
+  exit 1
+fi
+work_root="${DDSM_WORK_ROOT:-${workspace_root}/ddsm-reproduction}"
 upstream_dir="${work_root}/ddsm"
 data_dir="${work_root}/data"
 upstream_commit="ff20be49138589ae0f477b4039feafa7343de2a2"
@@ -31,6 +39,9 @@ python -m pip install \
 
 mkdir -p "${work_root}" "${data_dir}" "${work_root}/noise" "${work_root}/runs"
 
+printf 'export DDSM_WORKSPACE_ID=%q\nexport DDSM_WORK_ROOT=%q\n' \
+  "${workspace_id}" "${work_root}" > "${wrapper_root}/.ddsm_charisma.env"
+
 if [[ ! -d "${upstream_dir}/.git" ]]; then
   git clone https://github.com/jzhoulab/ddsm.git "${upstream_dir}"
 fi
@@ -56,6 +67,9 @@ PY
 
 echo "setup_complete=true"
 echo "environment=${env_name}"
+echo "workspace_id=${workspace_id}"
+echo "workspace_root=${workspace_root}"
+echo "work_root=${work_root}"
 echo "upstream=${upstream_dir}"
 echo "upstream_commit=$(git -C "${upstream_dir}" rev-parse HEAD)"
 echo "data=${data_dir}"

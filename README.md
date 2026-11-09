@@ -62,7 +62,8 @@ bash setup_charisma.sh
 - загружает официальный модуль `python`/Miniconda;
 - создаёт Conda environment `ddsm-repro` на Python 3.11;
 - устанавливает закреплённые версии PyTorch и научных библиотек;
-- клонирует официальный DDSM в `/scratch/$USER/ddsm-reproduction/ddsm`;
+- определяет доступный scratch workspace командой `ws_find ft-models`;
+- клонирует официальный DDSM в `<workspace>/ddsm-reproduction/ddsm`;
 - переключает upstream на зафиксированный commit;
 - скачивает fixed binarized-MNIST split на login-сервере;
 - копирует только cluster wrapper в официальный checkout.
@@ -108,10 +109,24 @@ tail -f ddsm-mnist-test-JOB_ID.log
 scancel JOB_ID
 ```
 
+Для текущей учётной записи setup использует workspace `ft-models`, поэтому
+рабочий корень будет иметь вид:
+
+```text
+/scratch/ws/tschichkanov-ft-models/ddsm-reproduction
+```
+
+Путь не захардкожен: он каждый раз определяется через `ws_find` и сохраняется
+в `.ddsm_charisma.env` для Slurm job. При другом ID workspace можно выполнить:
+
+```bash
+DDSM_WORKSPACE_ID=OTHER_ID bash setup_charisma.sh
+```
+
 Результаты:
 
 ```text
-/scratch/$USER/ddsm-reproduction/runs/test-JOB_ID/
+<workspace>/ddsm-reproduction/runs/test-JOB_ID/
 ├── best_model.pt
 ├── last_checkpoint.pt
 ├── metrics.jsonl

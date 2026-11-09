@@ -13,7 +13,14 @@
 
 set -euo pipefail
 
-work_root="/scratch/${USER}/ddsm-reproduction"
+wrapper_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+config_path="${wrapper_root}/.ddsm_charisma.env"
+if [[ ! -f "${config_path}" ]]; then
+  echo "Missing ${config_path}; run bash setup_charisma.sh on the login node first." >&2
+  exit 1
+fi
+source "${config_path}"
+work_root="${DDSM_WORK_ROOT}"
 upstream_dir="${work_root}/ddsm"
 data_dir="${work_root}/data"
 noise_dir="${work_root}/noise"
@@ -31,6 +38,7 @@ export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 
 echo "host=$(hostname)"
 echo "job_id=${SLURM_JOB_ID}"
+echo "work_root=${work_root}"
 echo "upstream_commit=$(git rev-parse HEAD)"
 echo "cuda_visible_devices=${CUDA_VISIBLE_DEVICES:-unset}"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader
