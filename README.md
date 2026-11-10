@@ -46,6 +46,40 @@ sbatch --export=ALL,PILOT_MAX_STEPS=500,PILOT_SAMPLE_COUNT=64 \
   jobs/promoter_four_pilot.sbatch
 ```
 
+Официальная promoter-метрика Sei SP-MSE для уже завершённого run (пример для
+pilot `4502159`):
+
+```bash
+source .dna_benchmark.env
+pilot_root="${DNA_BENCHMARK_ROOT}/runs/pilot-4502159"
+sbatch --export="ALL,PROMOTER_RUN_ROOT=${pilot_root}" \
+  jobs/promoter_sei_evaluate.sbatch
+```
+
+Evaluator использует опубликованный `best.sei.model.pth.tar`, усредняет forward
+и reverse-complement predictions, дополняет 1024 bp до 4096 bp нейтральными
+флангами и считает MSE по среднему профилю H3K4me3. `chr8/chr9` при этом не
+читаются: targets восстанавливаются из validation split `chr10` и сохранённых
+seed/config каждого checkpoint.
+
+Полный следующий validation stage (четыре метода, seeds 42/43/44, 20000 шагов,
+256 генераций на run) вместе с зависимым Sei job отправляется одной командой:
+
+```bash
+bash tools/submit_promoter_validation.sh
+```
+
+Array ограничен одной одновременно работающей задачей, чтобы соблюдать test
+QOS. Sei job имеет зависимость `afterok` и начнётся только после успешного
+завершения всех 12 training tasks. Итоговая таблица:
+
+```bash
+python tools/summarize_promoter_runs.py RUN_ROOT
+```
+
+Test split `chr8/chr9` намеренно не включён в эти jobs. Его открывают только
+после выбора конфигурации по validation SP-MSE.
+
 Ниже сохранён прежний MNIST-тест официальной реализации DDSM.
 
 Воспроизводимый запуск официальной реализации статьи:
