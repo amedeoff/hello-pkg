@@ -5,6 +5,9 @@
 Для проверки очереди используйте `bash tools/preflight_test.sh`, затем
 `sbatch --partition=test jobs/gpu_probe_test.sbatch` из корня checkout.
 Загрузка DNA непосредственно на кластер: `bash tools/download_promoter_data.sh`.
+Подготовка promoter-файлов: `bash tools/prepare_promoter_data.sh`.
+Потоковое построение genome memmap в `test`:
+`sbatch --partition=test jobs/promoter_memmap_test.sbatch`.
 Четыре DNA training adapters пока не готовы. Ниже сохранён прежний MNIST-тест.
 
 Воспроизводимый запуск официальной реализации статьи:

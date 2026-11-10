@@ -194,6 +194,23 @@ bash tools/download_promoter_data.sh
 $(ws_find ft-models)/dna-benchmark/downloads. Распаковку и тяжёлый preprocessing
 планировать после изучения README архива и бюджета RAM/диска.
 
+После проверки архива:
+
+```bash
+bash tools/prepare_promoter_data.sh
+sbatch --partition=test jobs/promoter_memmap_test.sbatch
+```
+
+Первый скрипт извлекает только `data/promoter_design` и promoter checkpoint,
+распаковывает вложенные gzip, проверяет обязательные файлы и создаёт manifest.
+Второй строит Selene-совместимый float32 memmap в CPU-задаче `test`.
+Авторский builder одновременно держит полный one-hot genome в RAM; наш builder
+пишет по блокам, проверяет фрагменты обратно по FASTA и продолжает с границы
+последней завершённой хромосомы после 30-минутного timeout. Он сохраняет
+авторские A/C/G/T channels, 0.25 для неизвестных оснований и лексикографический
+порядок хромосом. Это оптимизация preprocessing; итоговый формат должен быть
+байтово совместим с `MemmapGenome`, что дополнительно проверяется перед training.
+
 Готовность к четырём тренировкам требует ещё: data manifest, окружения с проверенными
 imports, четыре adapter/sampler tests, общий evaluator и checkpoints/resume.
 Публикация этого обзора не означает, что эти этапы уже выполнены.

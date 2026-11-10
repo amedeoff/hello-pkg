@@ -1,4 +1,5 @@
 .ddsm_charisma.env
+.dna_benchmark.env
 *.log
 *.err
 __pycache__/
