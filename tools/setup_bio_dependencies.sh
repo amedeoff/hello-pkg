@@ -15,3 +15,5 @@ import torch
 print('bio_dependencies=PASS')
 print('torch', torch.__version__, 'numpy', numpy.__version__, 'scipy', scipy.__version__)
 PY
+echo "Dependencies were installed into ddsm-repro. A child script cannot activate the parent shell."
+echo "next=bash tools/run_bio_selftest.sh"
