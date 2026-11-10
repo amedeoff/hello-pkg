@@ -59,6 +59,16 @@ def parse_args():
     parser.add_argument("--alpha-max", type=float, default=8.0)
     parser.add_argument("--alpha-scale", type=float, default=2.0)
     parser.add_argument("--prior-pseudocount", type=float, default=2.0)
+    parser.add_argument("--validation-batches", type=int, default=1)
+    parser.add_argument("--checkpoint-every", type=int, default=0)
+    parser.add_argument("--log-every", type=int, default=1)
+    parser.add_argument(
+        "--training-wall-seconds", type=float, default=0,
+        help="Stop training cleanly after this many seconds; 0 disables the limit.",
+    )
+    parser.add_argument(
+        "--scope", default="short common-backbone promoter smoke test; not paper-scale evaluation"
+    )
     return parser.parse_args()
 
 
@@ -214,6 +224,17 @@ def atomic_json(path: Path, value):
     os.replace(temporary, path)
 
 
+def atomic_checkpoint(path, model, optimizer, args, completed_steps):
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    torch.save({
+        "model": model.state_dict(),
+        "optimizer": optimizer.state_dict(),
+        "args": vars(args),
+        "completed_steps": completed_steps,
+    }, temporary)
+    os.replace(temporary, path)
+
+
 def main():
     args = parse_args()
     seed_everything(args.seed)
@@ -242,9 +263,11 @@ def main():
     print(f"method={args.method} accelerator={accelerator} parameters={parameter_count}")
     print(json.dumps(audit, sort_keys=True))
     metrics_path = args.output_dir / "metrics.jsonl"
+    checkpoint_path = args.output_dir / "last_checkpoint.pt"
     model.train()
     iterator = iter(train_loader)
     started = time.time()
+    completed_steps = 0
     with metrics_path.open("w", encoding="utf-8") as metrics_file:
         for step in range(1, args.max_steps + 1):
             try:
@@ -264,34 +287,71 @@ def main():
                 "gradient_norm": float(gradient_norm), "elapsed_seconds": time.time() - started,
             }
             metrics_file.write(json.dumps(record) + "\n")
-            metrics_file.flush()
-            print(json.dumps(record), flush=True)
+            completed_steps = step
+            if step == 1 or step % args.log_every == 0 or step == args.max_steps:
+                metrics_file.flush()
+                print(json.dumps(record), flush=True)
+            if args.checkpoint_every and step % args.checkpoint_every == 0:
+                atomic_checkpoint(checkpoint_path, model, optimizer, args, completed_steps)
+                print(f"checkpoint={checkpoint_path} step={step}", flush=True)
+            if args.training_wall_seconds and time.time() - started >= args.training_wall_seconds:
+                print(
+                    f"training_wall_limit_reached={args.training_wall_seconds} "
+                    f"completed_steps={completed_steps}",
+                    flush=True,
+                )
+                break
+    atomic_checkpoint(checkpoint_path, model, optimizer, args, completed_steps)
     model.eval()
-    validation_batch = next(iter(valid_loader))
-    with torch.set_grad_enabled(args.method == "ddsm"):
-        validation_loss, signal = loss_for_batch(args, model, validation_batch, device, ddsm_state)
-    count = min(args.sample_count, validation_batch["tokens"].shape[0])
-    signal = signal[:count]
-    target = validation_batch["tokens"][:count].to(device)
-    generated, diagnostics = generate(args, model, signal, device, ddsm_state)
+    validation_losses = []
+    for batch_index, validation_batch in enumerate(valid_loader):
+        if batch_index >= args.validation_batches:
+            break
+        with torch.set_grad_enabled(args.method == "ddsm"):
+            validation_loss, _ = loss_for_batch(args, model, validation_batch, device, ddsm_state)
+        validation_losses.append(float(validation_loss.detach()))
+    if not validation_losses:
+        raise RuntimeError("Validation loader produced no batches")
+
+    generated_parts = []
+    target_parts = []
+    signal_parts = []
+    diagnostics = {}
+    remaining = min(args.sample_count, len(valid_data))
+    for validation_batch in valid_loader:
+        if remaining <= 0:
+            break
+        count = min(remaining, validation_batch["tokens"].shape[0])
+        signal = condition_transform(validation_batch["signal"][:count].to(device))
+        target = validation_batch["tokens"][:count].to(device)
+        generated, batch_diagnostics = generate(args, model, signal, device, ddsm_state)
+        generated_parts.append(generated)
+        target_parts.append(target)
+        signal_parts.append(signal)
+        for key, value in batch_diagnostics.items():
+            diagnostics[key] = diagnostics.get(key, 0) + value
+        remaining -= count
+        print(f"generated_samples={args.sample_count - remaining}/{args.sample_count}", flush=True)
+    generated = torch.cat(generated_parts)
+    target = torch.cat(target_parts)
+    signal = torch.cat(signal_parts)
     sample_metrics, strings = evaluate_samples(generated, target, signal, diagnostics)
     summary = {
         "method": args.method,
         "seed": args.seed,
         "parameter_count": parameter_count,
-        "train_steps": args.max_steps,
-        "validation_loss": float(validation_loss.detach()),
+        "train_steps": completed_steps,
+        "requested_train_steps": args.max_steps,
+        "validation_batches": len(validation_losses),
+        "validation_loss": float(np.mean(validation_losses)),
         "wall_seconds": time.time() - started,
         "peak_cuda_bytes": torch.cuda.max_memory_allocated() if args.device == "cuda" else 0,
         "sample_metrics": sample_metrics,
         "status": "PASS",
-        "scope": "short common-backbone promoter smoke test; not paper-scale evaluation",
+        "scope": args.scope,
     }
     atomic_json(args.output_dir / "summary.json", summary)
-    torch.save({
-        "model": model.state_dict(), "optimizer": optimizer.state_dict(),
-        "args": vars(args), "summary": summary,
-    }, args.output_dir / "last_checkpoint.pt")
+    atomic_checkpoint(checkpoint_path, model, optimizer, args, completed_steps)
     with (args.output_dir / "samples.fasta").open("w", encoding="utf-8") as handle:
         for index, sequence in enumerate(strings):
             handle.write(f">{args.method}_seed{args.seed}_{index}\n{sequence}\n")

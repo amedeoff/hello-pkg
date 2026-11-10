@@ -8,7 +8,45 @@
 Подготовка promoter-файлов: `bash tools/prepare_promoter_data.sh`.
 Потоковое построение genome memmap в `test`:
 `sbatch --partition=test jobs/promoter_memmap_test.sbatch`.
-Четыре DNA training adapters пока не готовы. Ниже сохранён прежний MNIST-тест.
+Четыре common-backbone DNA adapters готовы. Короткая проверка всех процессов:
+
+```bash
+bash tools/setup_bio_dependencies.sh
+bash tools/run_bio_selftest.sh
+sbatch jobs/promoter_four_smoke.sbatch
+```
+
+После успешного smoke-теста запустите 30-минутные promoter pilots:
+
+```bash
+git pull --ff-only origin ddsm-charisma
+sbatch --test-only jobs/promoter_four_pilot.sbatch
+sbatch jobs/promoter_four_pilot.sbatch
+```
+
+Pilot array запускает четыре метода в `test`, не более двух задач одновременно:
+1000 optimizer steps, batch 32, 8192/1024 promoter windows, четыре validation
+batch и 128 генераций. Checkpoint обновляется каждые 100 шагов. Внутренний
+лимит обучения 1050 секунд оставляет время на validation и sampling до
+30-минутного лимита Slurm.
+
+Проверка после завершения, где `JOB_ID` — номер array job из `sbatch`:
+
+```bash
+sacct -j JOB_ID --format=JobID,JobName,Partition,State,Elapsed,ExitCode,NodeList
+source .dna_benchmark.env
+python tools/summarize_smoke.py "${DNA_BENCHMARK_ROOT}/runs/pilot-JOB_ID"
+```
+
+Smoke и pilot являются common-backbone сравнением, а не paper-scale
+reproduction. Бюджет pilot можно уменьшить без изменения файла:
+
+```bash
+sbatch --export=ALL,PILOT_MAX_STEPS=500,PILOT_SAMPLE_COUNT=64 \
+  jobs/promoter_four_pilot.sbatch
+```
+
+Ниже сохранён прежний MNIST-тест официальной реализации DDSM.
 
 Воспроизводимый запуск официальной реализации статьи:
 
